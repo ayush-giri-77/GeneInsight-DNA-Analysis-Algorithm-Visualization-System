@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.utils;
+package com.geneinsight.utils;
 
 public class InputValidator {
 }

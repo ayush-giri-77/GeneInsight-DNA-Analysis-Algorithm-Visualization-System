@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.ui;
+package com.geneinsight.ui;
 
 public class ResultPanel {
 }

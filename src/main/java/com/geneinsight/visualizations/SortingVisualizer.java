@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.visualizations;
+package com.geneinsight.visualizations;
 
 public class SortingVisualizer {
 }

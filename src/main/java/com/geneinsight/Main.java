@@ -1,4 +1,4 @@
-package main.java.com.geneinsight;
+package com.geneinsight;
 
 import com.geneinsight.controller.AppController;
 

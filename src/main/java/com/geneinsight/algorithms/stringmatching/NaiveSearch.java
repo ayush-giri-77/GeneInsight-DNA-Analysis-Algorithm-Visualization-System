@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.algorithms.stringmatching;
+package com.geneinsight.algorithms.stringmatching;
 
 import com.geneinsight.model.Result;
 

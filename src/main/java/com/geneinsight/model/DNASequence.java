@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.model;
+package com.geneinsight.model;
 
 public class DNASequence {
 }

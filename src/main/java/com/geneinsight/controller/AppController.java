@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.controller;
+package com.geneinsight.controller;
 
 import com.geneinsight.model.Result;
 import com.geneinsight.service.AlgorithmService;

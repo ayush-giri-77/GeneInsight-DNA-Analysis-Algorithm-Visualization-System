@@ -1,4 +1,4 @@
-package main.java.com.geneinsight.algorithms.greedy;
+package com.geneinsight.algorithms.greedy;
 
 public class HuffmanCoding {
 }
