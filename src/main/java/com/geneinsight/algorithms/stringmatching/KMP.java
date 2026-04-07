@@ -1,24 +1,39 @@
 package com.geneinsight.algorithms.stringmatching;
 
+import com.geneinsight.model.Result;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class KMP {
 
-    public static int search(String text, String pattern) {
+    public Result search(String text, String pattern) {
+
+        long start = System.nanoTime();
+
         int n = text.length();
         int m = pattern.length();
 
         int[] lps = computeLPS(pattern);
 
+        List<Integer> indices = new ArrayList<>();
+        int comparisons = 0;
+
         int i = 0, j = 0;
 
         while (i < n) {
+
+            comparisons++;
+
             if (text.charAt(i) == pattern.charAt(j)) {
                 i++;
                 j++;
-            }
 
-            if (j == m) {
-                return i - j; // found
-            } else if (i < n && text.charAt(i) != pattern.charAt(j)) {
+                if (j == m) {
+                    indices.add(i - j);
+                    j = lps[j - 1];
+                }
+            } else {
                 if (j != 0) {
                     j = lps[j - 1];
                 } else {
@@ -27,10 +42,13 @@ public class KMP {
             }
         }
 
-        return -1; // not found
+        long end = System.nanoTime();
+
+        return new Result(indices, comparisons, (end - start), "KMP");
     }
 
-    private static int[] computeLPS(String pattern) {
+    private int[] computeLPS(String pattern) {
+
         int m = pattern.length();
         int[] lps = new int[m];
 

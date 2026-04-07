@@ -8,7 +8,7 @@ public class Result {
     private long timeTaken;
     private String algorithmName;
 
-    public Result(List<Integer> indices, int comparisons, long timeTaken) {
+    public Result(List<Integer> indices, int comparisons, long timeTaken, String algorithmName) {
         this.indices = indices;
         this.comparisons = comparisons;
         this.timeTaken = timeTaken;
@@ -29,6 +29,14 @@ public class Result {
 
     public String getAlgorithmName() {
         return algorithmName;
+    }
+
+    public void display() {
+        System.out.println("Algorithm: " + algorithmName);
+        System.out.println("Match Positions: " + indices);
+        System.out.println("Comparisons: " + comparisons);
+        System.out.println("Time (ns): " + timeTaken);
+        System.out.println("Time (ms): " + (timeTaken / 1_000_000.0));
     }
 }
 

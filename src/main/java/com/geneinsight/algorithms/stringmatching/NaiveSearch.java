@@ -31,6 +31,6 @@ public class NaiveSearch {
 
         long end = System.nanoTime();
 
-        return new Result(indices, comparisons, (end - start));
+        return new Result(indices, comparisons, (end - start), "Naive");
     }
 }
