@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeneInsight | NEXUS-CORE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-dark: #010409; --cyan: #00f2ff; --indigo: #6366f1;
+            --emerald: #10b981; --amber: #f59e0b; --neon-border: rgba(0, 242, 255, 0.2);
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: #f1f5f9;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-image: radial-gradient(circle at 50% 50%, #0f172a 0%, #010409 100%);
+        }
+
+        /* Scanline Effect */
+        body::before {
+            content: " ";
+            display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 9999; pointer-events: none; background-size: 100% 4px, 3px 100%;
+        }
+
+        /* Glass HUD */
+        .hud-card {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--neon-border);
+            border-radius: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hud-card::after {
+            content: ""; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.03), transparent);
+            transform: skewX(-25deg); transition: 0.75s;
+        }
+        .hud-card:hover::after { left: 150%; }
+
+        /* Sidebar & Nav */
+        .sidebar { width: 300px; background: rgba(1, 4, 9, 0.9); border-right: 1px solid var(--neon-border); }
+
+        .nav-link {
+            padding: 1rem 1.25rem; border-radius: 0.75rem; cursor: pointer; transition: 0.3s;
+            color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 1rem;
+        }
+        .nav-link:hover { color: var(--cyan); background: rgba(0, 242, 255, 0.05); }
+        .nav-link.active {
+            color: var(--cyan); background: rgba(0, 242, 255, 0.1);
+            border-left: 4px solid var(--cyan); box-shadow: -10px 0 20px rgba(0, 242, 255, 0.1);
+        }
+
+        /* DNA Visualization */
+        .dna-node {
+            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+            border-radius: 12px; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid;
+            /* BRIGHTNESS MODS BELOW */
+            text-shadow: 0 0 12px currentColor; /* Stronger text glow */
+            background: rgba(255, 255, 255, 0.05); /* Lighter base background */
+        }
+
+        /* Add this to make them pop even more on hover */
+        .dna-node:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .viz-zone {
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 40px),
+                        repeating-linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 40px);
+            border: 1px inset var(--neon-border);
+        }
+
+        /* Glow Animations */
+        @keyframes pulse-cyan { 0% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 242, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); } }
+        .active-scan {
+            animation: pulse-cyan 1s infinite;
+            filter: brightness(1.5);
+            transform: scale(1.05);
+            border-width: 3px !important;
+        }
+
+        section { display: none; opacity: 0; transform: scale(0.98); transition: all 0.5s ease; }
+        section.active { display: flex; opacity: 1; transform: scale(1); }
+
+        .stat-glow { text-shadow: 0 0 15px currentColor; }
+
+        /* Custom Inputs */
+        input, select {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(5px);
+        }
+
+        /* DP Cell Enhancements */
+        .cell {
+            width: 48px; height: 48px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        /* The "Heat" Effect - Brighter as the value increases */
+        .dp-active {
+            box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4) !important;
+            color: white !important;
+        }
+
+        /* The Final Path Glow (Green) */
+        .path-highlight {
+            background: rgba(16, 185, 129, 0.2) !important;
+            border-color: #10b981 !important;
+            color: #10b981 !important;
+            font-weight: 800;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        /* Grid Header Styles */
+        .grid-header {
+            background: rgba(0, 242, 255, 0.05);
+            color: var(--cyan);
+            font-weight: 800;
+        }
+
+        /* Blueprint Complementary Strand Mod */
+        #section-align .flex-col > div:last-child .dna-node {
+            border-style: dashed; /* Makes the antisense strand look like a template */
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* The Link Animation */
+        .fa-link {
+            filter: drop-shadow(0 0 5px currentColor);
+            transform: rotate(45deg);
+        }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar p-10 flex flex-col justify-between z-50">
+    <div>
+        <div class="flex items-center gap-4 mb-14">
+            <div class="relative">
+                <i class="fas fa-atom text-cyan-400 text-3xl animate-spin-slow"></i>
+                <div class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-black animate-pulse"></div>
+            </div>
+            <span class="text-2xl font-black text-white tracking-tighter italic">NEXUS<span class="text-cyan-400">CORE</span></span>
+        </div>
+
+        <nav class="space-y-3">
+            <div onclick="showSection('search')" id="link-search" class="nav-link active">
+                <i class="fas fa-satellite-dish"></i> SEQUENCE ANALYZER
+            </div>
+            <div onclick="showSection('lcs')" id="link-lcs" class="nav-link">
+                <i class="fas fa-layer-group"></i> SIMILARITY MATRIX
+            </div>
+            <div onclick="showSection('align')" id="link-align" class="nav-link">
+                <i class="fas fa-vial-circle-check"></i> MUTATION MAPPING
+            </div>
+        </nav>
+    </div>
+
+    <div class="hud-card p-4 space-y-2">
+        <div class="flex justify-between text-[10px] font-bold text-slate-500">
+            <span>CPU LOAD</span><span>24%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+            <div class="bg-cyan-400 h-full w-1/4"></div>
+        </div>
+        <p class="text-[9px] text-cyan-500/50 font-mono italic">SECURE DATA LINK ACTIVE</p>
+    </div>
+</aside>
+
+<main class="flex-1 p-12 overflow-y-auto relative">
+    <section id="section-search" class="active flex-col">
+        <div class="flex justify-between items-start mb-10">
+            <div>
+                <h2 class="text-xs font-black text-cyan-400 tracking-[0.3em] mb-2 uppercase">Core Algorithm Laboratory</h2>
+                <h1 class="text-5xl font-black text-white tracking-tight">Pattern <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Diagnostics</span></h1>
+            </div>
+            <div class="flex gap-6">
+                <div class="hud-card px-6 py-4 text-center min-w-[140px]">
+                    <span class="block text-[10px] font-bold text-slate-500 mb-1">ITERATIONS</span>
+                    <span id="stat-ops" class="text-3xl font-black text-cyan-400 stat-glow font-mono">0</span>
+                </div>
+                <div class="hud-card px-6 py-4 text-center min-w-[140px]">
+                    <span class="block text-[10px] font-bold text-slate-500 mb-1">LATENCY</span>
+                    <span id="stat-time" class="text-3xl font-black text-emerald-400 stat-glow font-mono">0ms</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-card p-8 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Source String</label>
+                <input id="search-t" type="text" value="GATTACAGATTACA" class="w-full p-4 rounded-xl text-cyan-400 font-mono outline-none focus:ring-2 ring-cyan-500/50 transition-all uppercase">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Pattern</label>
+                <input id="search-p" type="text" value="GATTA" class="w-full p-4 rounded-xl text-cyan-400 font-mono outline-none focus:ring-2 ring-cyan-500/50 transition-all uppercase">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logic Processor</label>
+                <select id="search-mode" class="w-full p-4 rounded-xl text-white outline-none">
+                    <option value="kmp">KMP ENGINE (O: N+M)</option>
+                    <option value="rabin">RABIN-KARP (O: N+M avg)</option>
+                    <option value="naive">NAIVE ENGINE (O: N*M)</option>
+                </select>
+            </div>
+            <button onclick="runSearch()" class="h-[60px] bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-black font-black rounded-xl transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,242,255,0.3)]">
+                <i class="fas fa-bolt"></i> EXECUTE SCAN
+            </button>
+        </div>
+
+        <div id="search-status" class="mb-6 font-mono text-xs text-cyan-300/70 p-4 rounded-xl border border-cyan-500/20 bg-cyan-950/20 flex items-center gap-3">
+            <div class="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
+            <span>System standby... Waiting for parameters.</span>
+        </div>
+
+        <div class="hud-card flex-1 p-12 overflow-auto viz-zone min-h-[400px]">
+            <div id="search-t-display" class="flex gap-3 mb-20 relative"></div>
+            <div id="search-p-display" class="flex gap-3 transition-all duration-500 ease-out"></div>
+        </div>
+    </section>
+
+    <section id="section-lcs" class="flex-col">
+        <h1 class="text-4xl font-black text-white mb-8">Similarity <span class="text-indigo-400">Matrix</span></h1>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 min-h-0">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="hud-card p-6 space-y-6">
+                    <input id="lcs-1" type="text" value="AGGTAB" class="w-full p-4 rounded-xl uppercase font-mono">
+                    <input id="lcs-2" type="text" value="GXTXAYB" class="w-full p-4 rounded-xl uppercase font-mono">
+                    <button onclick="runLCS()" class="w-full bg-indigo-500 py-4 rounded-xl font-black hover:bg-indigo-400 transition-all shadow-lg">CALCULATE DP</button>
+                </div>
+                <div id="lcs-result" class="hud-card p-6 text-center text-emerald-400 font-black text-xl border-t-4 border-emerald-500">LCS: ---</div>
+            </div>
+            <div class="lg:col-span-3 hud-card viz-zone overflow-auto flex items-center justify-center p-10">
+                <div id="lcs-viz"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="section-align" class="flex-col">
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-4xl font-black text-white mb-2">Genomic <span class="text-emerald-400">Divergence</span></h1>
+                <p class="text-slate-400 font-mono text-xs text-glow">STATISTICAL ANALYSIS & COMPLEMENTARY MAPPING</p>
+            </div>
+            <div class="flex gap-4">
+                <div class="hud-card px-6 py-2 border-emerald-500/50">
+                    <span class="block text-[10px] font-bold text-slate-500">SIMILARITY</span>
+                    <span id="stat-sim" class="text-2xl font-black text-emerald-400 font-mono stat-glow drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-card p-8 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequence Alpha</label>
+                    <input id="al-1" type="text" value="ACTGACGC" class="w-full p-4 rounded-xl font-mono uppercase bg-black/40 border border-white/10 text-emerald-400 outline-none focus:border-emerald-500/50 transition-all">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequence Beta</label>
+                    <input id="al-2" type="text" value="ACTGTCGCA" class="w-full p-4 rounded-xl font-mono uppercase bg-black/40 border border-white/10 text-emerald-400 outline-none focus:border-emerald-500/50 transition-all">
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="runAlign()" class="flex-1 bg-emerald-500 text-black font-black py-4 rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    <i class="fas fa-not-equal mr-2"></i> CALCULATE DISTANCE
+                </button>
+                <button onclick="generateBlueprint()" class="flex-1 bg-transparent border border-cyan-500 text-cyan-400 font-black py-4 rounded-xl hover:bg-cyan-500/10 transition-all">
+                    <i class="fas fa-dna mr-2"></i> GENOMIC BLUEPRINT
+                </button>
+            </div>
+        </div>
+
+        <div id="al-viz" class="hud-card flex-1 viz-zone flex flex-col items-center justify-center p-12 overflow-auto min-h-[300px]">
+            <div class="text-slate-600 font-mono italic">Initialize scan to visualize alignment...</div>
+        </div>
+    </section>
+</main>
+
+<script>
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const palette = { 'A': '#10b981', 'T': '#ef4444', 'C': '#3b82f6', 'G': '#f59e0b', 'default': '#94a3b8' };
+
+    function showSection(id) {
+        document.querySelectorAll('main > section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.getElementById('section-' + id).classList.add('active');
+        document.getElementById('link-' + id).classList.add('active');
+    }
+
+    function createNode(char, isPattern = false) {
+        const c = palette[char] || palette['default'];
+        const shadow = isPattern ? `0 0 20px ${c}40` : 'none';
+        return `<div class="dna-node" style="border-color:${c}60; color:${c}; box-shadow:${shadow}; background:${c}05">${char || '-'}</div>`;
+    }
+
+    async function runSearch() {
+        const text = document.getElementById('search-t').value.toUpperCase();
+        const pat = document.getElementById('search-p').value.toUpperCase();
+        const mode = document.getElementById('search-mode').value;
+        const tD = document.getElementById('search-t-display');
+        const pD = document.getElementById('search-p-display');
+        const status = document.querySelector('#search-status span');
+
+        // 1. Reset UI and Metrics
+        document.getElementById('stat-ops').innerText = "0";
+        document.getElementById('stat-time').innerText = "0ms";
+        tD.innerHTML = text.split('').map(c => createNode(c)).join('');
+        pD.innerHTML = pat.split('').map(c => createNode(c, true)).join('');
+
+        const startTime = performance.now();
+
+        // 2. Algorithm Router
+        try {
+            if (mode === 'kmp') {
+                await executeKMP(text, pat, tD, pD, status);
+            } else if (mode === 'rabin') {
+                await executeRabinKarp(text, pat, tD, pD, status);
+            } else {
+                await executeNaive(text, pat, tD, pD, status);
+            }
+        } catch (e) {
+            console.error("Search Interrupted", e);
+        }
+
+        // 3. Finalize Benchmarks
+        const duration = Math.round(performance.now() - startTime);
+        document.getElementById('stat-time').innerText = `${duration}ms`;
+    }
+
+    // --- ENGINE 1: NAIVE ---
+    async function executeNaive(text, pat, tD, pD, status) {
+        let ops = 0;
+        for (let i = 0; i <= text.length - pat.length; i++) {
+            pD.style.marginLeft = `${i * 60}px`;
+            for (let j = 0; j < pat.length; j++) {
+                ops++; document.getElementById('stat-ops').innerText = ops;
+                const tk = tD.children[i + j], pk = pD.children[j];
+                tk.classList.add('active-scan'); pk.classList.add('active-scan');
+                status.innerText = `NAIVE: Verifying window at index ${i}...`;
+                await sleep(200);
+                if (text[i + j] !== pat[j]) break;
+                if (j === pat.length - 1) {
+                    status.innerText = `SUCCESS: Match at index ${i}`;
+                    return;
+                }
+            }
+            resetViz(tD, pD);
+        }
+        status.innerText = "SCAN COMPLETE: No match found.";
+    }
+
+    // --- ENGINE 2: KMP ---
+    async function executeKMP(text, pat, tD, pD, status) {
+        let ops = 0;
+        let lps = new Array(pat.length).fill(0), len = 0, k = 1;
+        while(k < pat.length) {
+            if(pat[k] === pat[len]) lps[k++] = ++len;
+            else if(len !== 0) len = lps[len-1];
+            else lps[k++] = 0;
+        }
+
+        let i = 0, j = 0;
+        while(i < text.length) {
+            ops++; document.getElementById('stat-ops').innerText = ops;
+            pD.style.marginLeft = `${i * 60 - j * 60}px`;
+            const tk = tD.children[i], pk = pD.children[j];
+            tk.classList.add('active-scan'); pk.classList.add('active-scan');
+            status.innerText = `KMP: Smart-skipping using LPS...`;
+            await sleep(300);
+            if(pat[j] === text[i]) {
+                i++; j++;
+                if(j === pat.length) { status.innerText = `SUCCESS: Match at index ${i-j}`; return; }
+            } else {
+                if(j !== 0) j = lps[j-1]; else i++;
+                resetViz(tD, pD);
+            }
+        }
+        status.innerText = "SCAN COMPLETE: No match found.";
+    }
+
+    // --- ENGINE 3: RABIN-KARP ---
+    async function executeRabinKarp(text, pat, tD, pD, status) {
+        const d = 4, q = 101, n = text.length, m = pat.length;
+        let h = 1, p = 0, t = 0, ops = 0;
+
+        for (let i = 0; i < m - 1; i++) h = (h * d) % q;
+        for (let i = 0; i < m; i++) {
+            p = (d * p + pat.charCodeAt(i)) % q;
+            t = (d * t + text.charCodeAt(i)) % q;
+        }
+
+        for (let i = 0; i <= n - m; i++) {
+            pD.style.marginLeft = `${i * 60}px`;
+            status.innerText = `RABIN-KARP: Hash T(${t}) vs P(${p})`;
+
+            // Visual cue for hash checking
+            for(let k=0; k<m; k++) tD.children[i+k].style.borderColor = '#f59e0b';
+            await sleep(400);
+
+            if (p === t) {
+                status.innerText = "Hash match! Verifying characters...";
+                let match = true;
+                for (let j = 0; j < m; j++) {
+                    ops++; document.getElementById('stat-ops').innerText = ops;
+                    const tk = tD.children[i + j], pk = pD.children[j];
+                    tk.classList.add('active-scan'); pk.classList.add('active-scan');
+                    await sleep(200);
+                    if (text[i + j] !== pat[j]) { match = false; break; }
+                }
+                if (match) { status.innerText = `SUCCESS: Match at index ${i}`; return; }
+            } else {
+                ops++; document.getElementById('stat-ops').innerText = ops;
+            }
+
+            if (i < n - m) {
+                t = (d * (t - text.charCodeAt(i) * h) + text.charCodeAt(i + m)) % q;
+                if (t < 0) t = (t + q);
+            }
+            for(let k=0; k<m; k++) tD.children[i+k].style.borderColor = '';
+            resetViz(tD, pD);
+        }
+        status.innerText = "SCAN COMPLETE: No match found.";
+    }
+
+    function resetViz(tD, pD) {
+        [...tD.children, ...pD.children].forEach(n => { n.classList.remove('active-scan'); n.style.transform = ''; });
+    }
+
+    // --- LCS & ALIGN (Integrated Futuristic Styling) ---
+    async function runLCS() {
+        const s1 = document.getElementById('lcs-1').value.toUpperCase();
+        const s2 = document.getElementById('lcs-2').value.toUpperCase();
+        const viz = document.getElementById('lcs-viz');
+        const res = document.getElementById('lcs-result');
+
+        let n = s1.length, m = s2.length;
+        let dp = Array.from({length: n+1}, () => Array(m+1).fill(0));
+
+        // 1. Build the Grid Structure
+        let html = `<div class="inline-grid gap-1 p-4 hud-card" style="grid-template-columns: repeat(${m+2}, 48px);">`;
+
+        // Headers
+        html += `<div class="cell border-none"></div><div class="cell grid-header">∅</div>`;
+        for(let c of s2) html += `<div class="cell grid-header">${c}</div>`;
+
+        for(let i=0; i<=n; i++) {
+            html += `<div class="cell grid-header">${i===0 ? '∅' : s1[i-1]}</div>`;
+            for(let j=0; j<=m; j++) {
+                html += `<div id="l-${i}-${j}" class="cell text-slate-600 bg-black/20">0</div>`;
+            }
+        }
+        viz.innerHTML = html + `</div>`;
+
+        // 2. Fill the Table with Heatmap Effect
+        for(let i=1; i<=n; i++) {
+            for(let j=1; j<=m; j++) {
+                const cell = document.getElementById(`l-${i}-${j}`);
+
+                if(s1[i-1] === s2[j-1]) {
+                    dp[i][j] = 1 + dp[i-1][j-1];
+                    cell.classList.add('dp-match'); // Optional: add a unique color for direct matches
+                } else {
+                    dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+                }
+
+                // Visual Fill
+                cell.innerText = dp[i][j];
+                cell.classList.add('dp-active');
+                // Calculate opacity based on the max possible LCS length
+                const intensity = dp[i][j] / Math.max(n, m);
+                cell.style.backgroundColor = `rgba(99, 102, 241, ${intensity * 0.4})`;
+
+                await sleep(30); // Fast fill animation
+            }
+        }
+
+        // 3. Backtracking Animation (Finding the Path)
+        let r = n, c = m, lcsStr = "";
+        while(r > 0 && c > 0) {
+            const cell = document.getElementById(`l-${r}-${c}`);
+            cell.classList.add('path-highlight');
+
+            await sleep(150); // Slower backtrack to show the "decision"
+
+            if(s1[r-1] === s2[c-1]) {
+                lcsStr = s1[r-1] + lcsStr;
+                r--; c--;
+            } else if(dp[r-1][c] >= dp[r][c-1]) {
+                r--;
+            } else {
+                c--;
+            }
+        }
+
+        res.innerHTML = `<span class="text-xs text-slate-500">OPTIMAL SEQUENCE:</span> <br> <span class="text-2xl">${lcsStr || "NONE"}</span>`;
+    }
+
+    function runAlign() {
+        const d1 = document.getElementById('al-1').value.toUpperCase(), d2 = document.getElementById('al-2').value.toUpperCase();
+        const board = document.getElementById('al-viz');
+        let i=0, j=0, r1=[], mid=[], r2=[];
+        const add = (c1, c2, icon, col) => {
+            r1.push(createNode(c1)); mid.push(`<div class="w-12 text-center ${col} animate-bounce"><i class="fas ${icon}"></i></div>`); r2.push(createNode(c2));
+        };
+        while(i < d1.length && j < d2.length) {
+            if(d1[i] === d2[j]) { add(d1[i], d2[j], 'fa-equals', 'text-emerald-500'); i++; j++; }
+            else if(i+1 < d1.length && d1[i+1] === d2[j]) { add(d1[i], '', 'fa-minus', 'text-red-500'); i++; }
+            else if(j+1 < d2.length && d2[j+1] === d1[i]) { add('', d2[j], 'fa-plus', 'text-purple-500'); j++; }
+            else { add(d1[i], d2[j], 'fa-xmark', 'text-amber-500'); i++; j++; }
+        }
+        while(i < d1.length) add(d1[i++], '', 'fa-minus', 'text-red-500');
+        while(j < d2.length) add('', d2[j++], 'fa-plus', 'text-purple-500');
+        board.innerHTML = `<div class="flex gap-3 mb-6">${r1.join('')}</div><div class="flex gap-3 mb-6">${mid.join('')}</div><div class="flex gap-3">${r2.join('')}</div>`;
+    }
+
+    // --- NEW ANALYTICS FUNCTIONS ---
+
+    async function generateBlueprint() {
+        const dna = document.getElementById('al-1').value.toUpperCase();
+        const board = document.getElementById('al-viz');
+        const simStat = document.getElementById('stat-sim');
+        const map = { 'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C' };
+        const bonds = { 'A': 'text-emerald-500', 'T': 'text-red-500', 'C': 'text-blue-500', 'G': 'text-amber-500' };
+
+        board.innerHTML = "";
+        simStat.innerText = "MAPPING...";
+
+        // Containers
+        const container = document.createElement('div');
+        container.className = "flex flex-col items-center scale-90";
+        const topRow = document.createElement('div'); topRow.className = "flex gap-2 mb-2";
+        const bondRow = document.createElement('div'); bondRow.className = "flex gap-2 my-1";
+        const botRow = document.createElement('div'); botRow.className = "flex gap-2 mt-2";
+
+        container.append(topRow, bondRow, botRow);
+        board.appendChild(container);
+
+        for (let i = 0; i < dna.length; i++) {
+            const base = dna[i];
+            const complement = map[base] || '?';
+            const bondColor = bonds[base] || 'text-slate-600';
+
+            // 1. Create Nodes
+            const topNode = createNode(base);
+            const botNode = createNode(complement);
+
+            // 2. Create the "Hydrogen Bond" Connector
+            const bondHTML = `
+                <div class="w-[48px] flex flex-col items-center opacity-40 ${bondColor} animate-pulse">
+                    <div class="h-2 w-0.5 bg-current"></div>
+                    <i class="fas fa-link text-[10px]"></i>
+                    <div class="h-2 w-0.5 bg-current"></div>
+                </div>`;
+
+            // 3. Staggered Injection
+            topRow.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in zoom-in slide-in-from-top-4 duration-500">${topNode}</div>`);
+            bondRow.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in duration-1000">${bondHTML}</div>`);
+            botRow.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500">${botNode}</div>`);
+
+            await sleep(100); // Speed of the "sequencing" effect
+        }
+
+        simStat.innerText = "100% COMPLEMENTARY";
+    }
+
+    // Replace your existing runAlign() with this improved version
+    async function runAlign() {
+        const d1 = document.getElementById('al-1').value.toUpperCase();
+        const d2 = document.getElementById('al-2').value.toUpperCase();
+        const board = document.getElementById('al-viz');
+        const simStat = document.getElementById('stat-sim');
+
+        // 1. Clear board and show "Initializing" state
+        board.innerHTML = `<div class="text-cyan-500 font-mono animate-pulse">ANALYZING GENOMIC DIVERGENCE...</div>`;
+        await sleep(800);
+        board.innerHTML = "";
+
+        // 2. Create Row Containers
+        const r1Div = document.createElement('div'); r1Div.className = "flex gap-3 mb-6";
+        const midDiv = document.createElement('div'); midDiv.className = "flex gap-3 mb-6";
+        const r2Div = document.createElement('div'); r2Div.className = "flex gap-3";
+        board.append(r1Div, midDiv, r2Div);
+
+        let i = 0, j = 0, matches = 0;
+        const maxLength = Math.max(d1.length, d2.length);
+
+        // 3. Step-by-Step Animation Loop
+        while (i < d1.length || j < d2.length) {
+            let char1 = '', char2 = '', icon = '', color = '', isMatch = false;
+
+            // Logic: Match
+            if (i < d1.length && j < d2.length && d1[i] === d2[j]) {
+                char1 = d1[i]; char2 = d2[j]; icon = 'fa-equals'; color = 'text-emerald-500';
+                isMatch = true; i++; j++;
+            }
+            // Logic: Deletion
+            else if (i < d1.length && (j === d2.length || i + 1 < d1.length && d1[i + 1] === d2[j])) {
+                char1 = d1[i]; char2 = ''; icon = 'fa-minus'; color = 'text-red-500';
+                i++;
+            }
+            // Logic: Insertion
+            else if (j < d2.length) {
+                char1 = ''; char2 = d2[j]; icon = 'fa-plus'; color = 'text-purple-500';
+                j++;
+            }
+
+            if (isMatch) matches++;
+
+            // 4. Kinetic "Pop-in" Injection
+            const node1 = createNode(char1);
+            const node2 = createNode(char2);
+            const midIcon = `<div class="w-[48px] text-center ${color} animate-bounce"><i class="fas ${icon}"></i></div>`;
+
+            // We use insertAdjacentHTML to add them one by one
+            r1Div.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in zoom-in duration-500">${node1}</div>`);
+            midDiv.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in zoom-in duration-500">${midIcon}</div>`);
+            r2Div.insertAdjacentHTML('beforeend', `<div class="animate-in fade-in zoom-in duration-500">${node2}</div>`);
+
+            // Update Stats in real-time
+            const currentSim = Math.round((matches / maxLength) * 100);
+            simStat.innerText = `${currentSim}%`;
+
+            // 5. The "Frame Rate" - adjust this for speed (ms)
+            await sleep(300);
+        }
+    }
+</script>
+</body>
+</html>
+

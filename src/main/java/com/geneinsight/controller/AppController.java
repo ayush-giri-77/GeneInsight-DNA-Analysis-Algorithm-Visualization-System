@@ -33,12 +33,13 @@ public class AppController {
             System.out.println("\n=== GeneInsight Menu ===");
             System.out.println("1. Pattern Search (KMP)");
             System.out.println("2. Pattern Search (Naive)");
-            System.out.println("3. Compare Algorithms");
-            System.out.println("4. DNA Complement & Reverse Complement ");
-            System.out.println("5. DNA Similarity Analysis (LCS) ");
-            System.out.println("6. Mutation Detection");
-            System.out.println("7. DNA Alignment Visualizer ");
-            System.out.println("8. Exit");
+            System.out.println("3. Pattern Search (Rabin-Karp) 🔥");
+            System.out.println("4. Compare Algorithms");
+            System.out.println("5. DNA Complement & Reverse Complement ");
+            System.out.println("6. DNA Similarity Analysis (LCS) ");
+            System.out.println("7. Mutation Detection");
+            System.out.println("8. DNA Alignment Visualizer ");
+            System.out.println("9. Exit");
 
             System.out.print("Choose option: ");
 
@@ -51,7 +52,7 @@ public class AppController {
             int choice = scanner.nextInt();
             scanner.nextLine(); // consume newline
 
-            if (choice == 8) {
+            if (choice == 9) {
                 System.out.println("Exiting...");
                 break;
             }
@@ -78,6 +79,19 @@ public class AppController {
                 }
 
                 case 3 -> {
+                    System.out.print("Enter DNA Sequence: ");
+                    String text = scanner.nextLine();
+
+                    System.out.print("Enter Pattern: ");
+                    String pattern = scanner.nextLine();
+
+                    Result result = service.runRabinKarp(text, pattern);
+
+                    System.out.println("\n--- RESULT ---");
+                    result.display();
+                }
+
+                case 4 -> {
                     String dna = getValidDNA("Enter DNA Sequence: ");
 
                     String pattern = getValidDNA("Enter Pattern: ");
@@ -85,7 +99,7 @@ public class AppController {
                     service.compareAlgorithms(dna, pattern);
                 }
 
-                case 4 -> {
+                case 5 -> {
                     String dna = getValidDNA("Enter DNA Sequence: ");
 
                     String complement = DNAUtils.getComplement(dna);
@@ -97,7 +111,7 @@ public class AppController {
                     System.out.println("Reverse Complement: " + reverse);
                 }
 
-                case 5 -> {
+                case 6 -> {
                     String dna1 = getValidDNA("Enter DNA Sequence 1: ");
 
                     String dna2 = getValidDNA("Enter DNA Sequence 2: ");
@@ -105,14 +119,14 @@ public class AppController {
                     service.analyzeSimilarity(dna1, dna2);
                 }
 
-                case 6 -> {
+                case 7 -> {
                     String dna1 = getValidDNA("Enter DNA Sequence 1: ");
                     String dna2 = getValidDNA("Enter DNA Sequence 2: ");
 
                     MutationService.detectMutation(dna1, dna2);
                 }
 
-                case 7 -> {
+                case 8 -> {
 
                     System.out.print("Enter DNA Sequence 1: ");
                     String dna1 = scanner.nextLine();
